@@ -28,7 +28,7 @@ test:
     reports:
       junit: "reports/TEST-*.xml"
 
-image:
+build:image:
   stage: build
   image:
     name: gcr.io/kaniko-project/executor:debug
