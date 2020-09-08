@@ -100,7 +100,7 @@ module MatrixInviteBot
 
       return unless sender_pl >= 100
 
-      command = event.content[:body][8..]
+      command = event.content[:body][8..-1]
       return if command.empty?
 
       logger.info "Handling command #{command.inspect} from #{sender.id} in room #{room.id}..."
