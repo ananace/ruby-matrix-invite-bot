@@ -1,16 +1,18 @@
 ---
-# Cache gems in between builds
-cache:
-  paths:
-    - vendor/ruby
+stages:
+  - test
+  - build
+  - promote
 
 rubocop:
+  stage: test
   image: "ruby:2.7"
   script:
     - gem install rubocop -N
     - rubocop lib
 
 test:
+  stage: test
   before_script:
     - sed -e 's/# gem /gem /' -i Gemfile
     - gem install bundler -N
@@ -25,3 +27,45 @@ test:
       - coverage/
     reports:
       junit: "reports/TEST-*.xml"
+
+image:version:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: []
+  script:
+    - mkdir -p /root/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"username\":\"${CI_REGISTRY_USER}\",\"password\":\"${CI_JOB_TOKEN}\"}}}" > /root/.docker/config.json
+    - source "${CI_PROJECT_DIR}/version"
+    - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile Dockerfile $DOCKER_PROXY --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG:-latest}"
+  rules:
+    - if: '$CI_REGISTRY_IMAGE'
+      when: on_success
+    - when: never
+
+.promote:
+  stage: promote
+  image: ananace/skopeo
+  script:
+    - source "${CI_PROJECT_DIR}/version"
+    - /skopeo copy --src-creds "${CI_REGISTRY_USER}:${CI_JOB_TOKEN}" --dest-creds "${PROMOTE_USER}:${PROMOTE_PASS}" "docker://${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG:-latest}" "docker://${PROMOTE_IMAGE}:${CI_COMMIT_TAG:-latest}"
+
+promote:tag:
+  extends: .promote
+  rules:
+    - if: '$PROMOTE_USER == null || $PROMOTE_PASS == null || $PROMOTE_IMAGE == null'
+      when: never
+    - if: '$CI_COMMIT_TAG && $CI_PROJECT_PATH == "ITI/matrix-invite-bot"'
+      when: on_success
+    - when: never
+
+promote:latest:
+  extends: .promote
+  variables:
+    PROMOTE_VERSION: latest
+  rules:
+    - if: '$PROMOTE_USER == null || $PROMOTE_PASS == null || $PROMOTE_IMAGE == null'
+      when: never
+    - if: '($CI_COMMIT_TAG != null || $CI_COMMIT_BRANCH == "master") && $CI_PROJECT_PATH == "ITI/matrix-invite-bot"'
+      when: on_success
+    - when: never
