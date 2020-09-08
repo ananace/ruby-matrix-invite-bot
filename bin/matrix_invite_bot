@@ -1,0 +1,83 @@
+#!/bin/env ruby
+# frozen_string_literal: true
+
+# On start;
+# 1. Get new sync token
+# 2. Check all joined rooms for se.liu.invite_bot state ({ "community_id": "+somecommunity:example.com" })
+# 3. Add membership listeners for all tracked rooms
+#
+# For each tracked room;
+#   1. Ensure bot is joined to community and all rooms in community
+#   2. Recheck member list against a (large) number of random rooms from linked community
+#   3. Send invites to all differing users
+#
+# 4. Start syncing
+#
+# On each sync;
+# 
+# - If message, contains '!invite link +communityid:example.com', and sender is admin
+#   1. Add se.liu.invite_bot state
+#   2. Ensure bot is joined to community and all rooms in community
+#
+#   3. Invite all members in newly tracked room to all rooms where needed
+#   4. Add "user joined" listener for newly tracked room
+#
+# - If user_joined, part of tracked room
+#   1. Invite user to community and all other rooms in community
+#
+# - If user_kicked, part of tracked room, mod/admin in tracked room
+#   1. Kick user from all community rooms where mod/admin
+#
+# - If user_banned, part of tracked room, mod/admin in tracked room
+#   1. Ban user from all community rooms where mod/admin
+
+require 'matrix_invite_bot'
+require 'optparse'
+
+options = { }
+
+opts = OptionParser.new do |opts|
+  opts.on '--homeserver URL', 'Sets the homeserver to connect to' do |hs|
+    options[:homeserver] = hs
+  end
+
+  opts.on '--access-token TOKEN',
+          'Sets the access token to use when communicating with the homeserver.',
+          'Also read from ACCESS_TOKEN environment variable.' do |token|
+    options[:access_token] = token
+  end
+
+  opts.on '--state-type TYPE',
+          'Change the state type the bot should look for.',
+          'Default: se.liu.invite_bot' do |key|
+    options[:state_key] = key
+  end
+
+  opts.on '--help', 'Display this output' do
+    puts opts
+    exit
+  end
+
+  opts.on '-v', '--verbose', 'Enable verbose (debug) output' do
+    MatrixSdk.debug!
+  end
+end
+opts.parse!
+
+options[:access_token] ||= ENV['ACCESS_TOKEN']
+
+if !(options.key?(:homeserver) && options.key?(:access_token))
+  puts "Both homeserver URL and access token need to be specified."
+  puts
+  puts opts
+  exit 1
+end
+
+::Logging.logger[MatrixInviteBot].tap do |logger|
+  logger.add_appenders ::Logging.appenders.stdout
+  logger.level = :info
+end
+
+bot = MatrixInviteBot::Bot.new **options
+
+bot.run
