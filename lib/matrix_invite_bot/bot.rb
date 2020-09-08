@@ -10,7 +10,7 @@ BOT_FILTER = {
       lazy_load_members: true
     },
     timeline: {
-      types: ['m.room.message','m.room.member']
+      types: ['m.room.message', 'm.room.member']
     },
     account_data: { types: [] }
   }
@@ -18,18 +18,18 @@ BOT_FILTER = {
 
 SYNC_INTERVAL = 8 * 60 * 60 # Default: 8h
 
-HELP_TEXT = <<HELP
-Usage;
-  !invite help
-    Show this text
-  !invite status
-    Show current invite handling status for this room
-  !invite refresh
-    Refresh the membership for all currently joined members in this room
-  !invite link +community:example.com
-    Links the given community to this room
-  !invite unlink
-    Unlinks any communities from this room
+HELP_TEXT = <<~HELP
+  Usage;
+    !invite help
+      Show this text
+    !invite status
+      Show current invite handling status for this room
+    !invite refresh
+      Refresh the membership for all currently joined members in this room
+    !invite link +community:example.com
+      Links the given community to this room
+    !invite unlink
+      Unlinks any communities from this room
 HELP
 
 module MatrixInviteBot
@@ -38,7 +38,7 @@ module MatrixInviteBot
 
     attr_reader :client
 
-    def initialize homeserver:, access_token:, state_type: 'se.liu.invite_bot'
+    def initialize(homeserver:, access_token:, state_type: 'se.liu.invite_bot')
       @client = MatrixSdk::Client.new homeserver, access_token: access_token, client_cache: :some
       @state_type = state_type
       @tracked = []
@@ -55,12 +55,10 @@ module MatrixInviteBot
       perform_clean_sync
       update_tracked_rooms
       @tracked.each do |room|
-        begin
-          ensure_community(room)
-          recheck_members(room, max_rooms: 100)
-        rescue MatrixSdk::MatrixError => e
-          logger.error "Failed to ensure community for #{room.id};\n#{e.class}: #{e}\n#{e.backtrace[0..10].join "\n"}"
-        end
+        ensure_community(room)
+        recheck_members(room, max_rooms: 100)
+      rescue MatrixSdk::MatrixError => e
+        logger.error "Failed to ensure community for #{room.id};\n#{e.class}: #{e}\n#{e.backtrace[0..10].join "\n"}"
       end
 
       filter = deep_copy(BOT_FILTER)
@@ -68,14 +66,11 @@ module MatrixInviteBot
 
       last_sync = Time.now
       loop do
-        begin
-          client.sync filter: BOT_FILTER
-          if Time.now - last_sync >= SYNC_INTERVAL
-            update_tracked_rooms 
-          end
-        rescue MatrixSdk::MatrixError => e
-          logger.error e
-        end
+        client.sync filter: BOT_FILTER
+
+        update_tracked_rooms if Time.now - last_sync >= SYNC_INTERVAL
+      rescue MatrixSdk::MatrixError => e
+        logger.error e
       end
     end
 
@@ -87,17 +82,16 @@ module MatrixInviteBot
       room = client.ensure_room event.room_id
       community = room.community
 
-      if event.content[:membership] == 'join'
-        return if event.state_key == client.mxid.to_s
+      return unless event.content[:membership] == 'join'
+      return if event.state_key == client.mxid.to_s
 
-        invite_user(community, event.state_key, even_if_leave: true)
-      end
+      invite_user(community, event.state_key, even_if_leave: true)
     end
 
     def on_message_event(event)
       return unless event.content[:msgtype] == 'm.text'
       return unless event.content[:body].start_with? '!invite '
-      
+
       room = client.ensure_room event.room_id
       sender = client.get_user event.sender
 
@@ -106,7 +100,7 @@ module MatrixInviteBot
 
       return unless sender_pl >= 100
 
-      command = event.content[:body][8..-1]
+      command = event.content[:body][8..]
       return if command.empty?
 
       logger.info "Handling command #{command.inspect} from #{sender.id} in room #{room.id}..."
@@ -121,11 +115,11 @@ module MatrixInviteBot
             community_id = room.community.id
             room.send_notice "Currently tracking community #{community_id} for this room."
           else
-            room.send_notice "Not tracking any community for this room."
+            room.send_notice 'Not tracking any community for this room.'
           end
         when 'refresh'
           unless room.instance_variables.include?(:@community) && room.community
-            room.send_notice "Not tracking any community for this room."
+            room.send_notice 'Not tracking any community for this room.'
             return
           end
 
@@ -136,17 +130,20 @@ module MatrixInviteBot
         when 'link'
           community_id = MatrixSdk::MXID.new args.first
           raise 'Not a valid community ID' unless community_id.group?
-          raise 'Not allowed to add necessary state data, give moderator rights?' unless (pl.users[client.mxid.to_s.to_sym] || pl.users_default || 0) >= (pl.events[@state_type.to_sym] || pl.state_default || 50)
+          raise 'Not allowed to add necessary state data, give moderator rights?' unless\
+            (pl.users[client.mxid.to_s.to_sym] || pl.users_default || 0) >= (pl.events[@state_type.to_sym] || pl.state_default || 50)
 
           room.instance_variable_set :@community, MatrixInviteBot::Community.new(client, community_id.to_s)
-          room.instance_eval do
-            def community
-              @community
+          unless room.respond_to? :community
+            room.instance_eval do
+              def community
+                @community
+              end
             end
-          end unless room.respond_to? :community
+          end
           ensure_community(room)
 
-          room.send_notice("Not allowed to invite users to given community, give admin in the community if that functionality is required.") unless room.community.is_admin?
+          room.send_notice('Not allowed to invite users to given community, give admin in the community if that functionality is required.') unless room.community.is_admin?
 
           recheck_members(room, max_rooms: 100)
 
@@ -158,7 +155,8 @@ module MatrixInviteBot
           room.send_notice "Now tracking community #{community_id} for this room."
         when 'unlink'
           if room.instance_variables.include?(:@community) && room.community
-            raise 'Not allowed to add necessary state data, give moderator rights?' unless (pl.users[client.mxid.to_s.to_sym] || pl.users_default || 0) >= (pl.events[@state_type.to_sym] || pl.state_default || 50)
+            raise 'Not allowed to add necessary state data, give moderator rights?' unless\
+              (pl.users[client.mxid.to_s.to_sym] || pl.users_default || 0) >= (pl.events[@state_type.to_sym] || pl.state_default || 50)
 
             community_id = room.community.id
             room.instance_variable_set :@community, nil
@@ -167,7 +165,7 @@ module MatrixInviteBot
 
             room.send_notice "No longer tracking community #{community_id} for this room."
           else
-            room.send_notice "Not tracking any community for this room."
+            room.send_notice 'Not tracking any community for this room.'
           end
         else
           room.send_notice "No idea what #{command.inspect} is, try \"!invite help\""
@@ -200,21 +198,19 @@ module MatrixInviteBot
 
       client.instance_variable_set :@rooms, {}
       @tracked = client.rooms.select do |room|
-        begin
-          state = client.api.get_room_state(room.id, @state_type)
-          return false if state.empty?
+        state = client.api.get_room_state(room.id, @state_type)
+        return false if state.empty?
 
-          room.instance_variable_set :@community, MatrixInviteBot::Community.new(client, state[:community_id])
-          room.instance_eval do
-            def community
-              @community
-            end
+        room.instance_variable_set :@community, MatrixInviteBot::Community.new(client, state[:community_id])
+        room.instance_eval do
+          def community
+            @community
           end
-
-          true
-        rescue MatrixSdk::MatrixNotFoundError
-          false
         end
+
+        true
+      rescue MatrixSdk::MatrixNotFoundError
+        false
       end
 
       logger.info "Tracking the following rooms;\n#{@tracked.map { |r| "#{r.id} - #{r.community.id}" }.join("\n")}"
@@ -243,10 +239,10 @@ module MatrixInviteBot
       valid_servers = ([MatrixSdk::MXID.new(community.id).homeserver] + rooms.map { |r| MatrixSdk::MXID.new(r.id).homeserver }).uniq
       joined_rooms = client.rooms.map(&:id)
 
-      rooms.each do |room|
-        next if joined_rooms.include? room.id
+      rooms.each do |rroom|
+        next if joined_rooms.include? rroom.id
 
-        client.join_room room, server_names: valid_servers
+        client.join_room rroom, server_names: valid_servers
       end
 
       return unless community.is_admin?
@@ -256,7 +252,7 @@ module MatrixInviteBot
       members = community.invited_members + community.joined_members
       room.all_members(membership: :join).each do |member|
         next if members.map(&:id).include? member.id
-        
+
         community.invite_user member
       end
     end
@@ -279,7 +275,7 @@ module MatrixInviteBot
     end
 
     def invite_user(community_id, user_id, community: true, even_if_leave: false, rooms: nil)
-      logger.info "Inviting user #{user_id} to #{community_id.id}#{community ? " and" : nil} rooms..."
+      logger.info "Inviting user #{user_id} to #{community_id.id}#{community ? ' and' : nil} rooms..."
       rooms ||= community_id.rooms
       user_id = client.get_user(user_id.to_s) unless user_id.is_a? MatrixSdk::User
 

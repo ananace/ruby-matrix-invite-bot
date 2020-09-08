@@ -24,9 +24,9 @@ module MatrixInviteBot
       client.api.request :put, :client_r0, "/groups/#{clean_id}/self/join", body: {}
     end
 
-    def is_admin?
+    def admin?
       client.api.request(:get, :client_r0, "/groups/#{clean_id}/users")[:chunk]\
-        .find { |ch| ch[:user_id] == client.mxid.to_s }[:is_privileged]
+            .find { |ch| ch[:user_id] == client.mxid.to_s }[:is_privileged]
     end
 
     def joined?
@@ -41,17 +41,17 @@ module MatrixInviteBot
 
     def invited_members
       client.api.request(:get, :client_r0, "/groups/#{clean_id}/invited_users")[:chunk]\
-        .map { |ch| client.get_user(ch[:user_id]) }
+            .map { |ch| client.get_user(ch[:user_id]) }
     end
 
     def joined_members
       client.api.request(:get, :client_r0, "/groups/#{clean_id}/users")[:chunk]\
-        .map { |ch| client.get_user(ch[:user_id]) }
+            .map { |ch| client.get_user(ch[:user_id]) }
     end
 
     def rooms
       client.api.request(:get, :client_r0, "/groups/#{clean_id}/rooms")[:chunk]\
-        .map { |ch| client.ensure_room(ch[:room_id]) }
+            .map { |ch| client.ensure_room(ch[:room_id]) }
     end
 
     def invite_user(user_id)

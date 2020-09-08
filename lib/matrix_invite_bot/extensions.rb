@@ -13,7 +13,6 @@ unless MatrixSdk::Room.instance_methods.include? :all_members
   end
 end
 
-
 unless MatrixSdk::Room.instance_methods.include? :put_state_event
   module MatrixSdk
     class Room
