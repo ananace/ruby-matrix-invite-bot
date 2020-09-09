@@ -143,7 +143,7 @@ module MatrixInviteBot
           end
           ensure_community(room)
 
-          room.send_notice('Not allowed to invite users to given community, give admin in the community if that functionality is required.') unless room.community.is_admin?
+          room.send_notice('Not allowed to invite users to given community, give admin in the community if that functionality is required.') unless room.community.admin?
 
           recheck_members(room, max_rooms: 100)
 
@@ -245,7 +245,7 @@ module MatrixInviteBot
         client.join_room rroom, server_names: valid_servers
       end
 
-      return unless community.is_admin?
+      return unless community.admin?
 
       logger.info "Ensuring members for community #{community.id} are invited..."
 
@@ -279,7 +279,7 @@ module MatrixInviteBot
       rooms ||= community_id.rooms
       user_id = client.get_user(user_id.to_s) unless user_id.is_a? MatrixSdk::User
 
-      community_id.invite_user user_id if community && community_id.is_admin? && !community_id.includes_user?(user_id)
+      community_id.invite_user user_id if community && community_id.admin? && !community_id.includes_user?(user_id)
 
       params = {}
       params[:not_membership] = :leave if even_if_leave
