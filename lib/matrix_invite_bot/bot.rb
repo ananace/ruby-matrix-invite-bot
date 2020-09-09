@@ -254,7 +254,8 @@ module MatrixInviteBot
       logger.info "Ensuring members for community #{community.id} are invited..."
 
       members = community.invited_members + community.joined_members
-      room.all_members(membership: :join).each do |member|
+      room.members.clear
+      room.joined_members.each do |member|
         next if members.map(&:id).include? member.id
 
         community.invite_user member
