@@ -68,7 +68,10 @@ module MatrixInviteBot
       loop do
         client.sync filter: BOT_FILTER
 
-        update_tracked_rooms if Time.now - last_sync >= SYNC_INTERVAL
+        if Time.now - last_sync >= SYNC_INTERVAL
+          update_tracked_rooms
+          last_sync = Time.now
+        end
       rescue MatrixSdk::MatrixError => e
         logger.error e
       end
