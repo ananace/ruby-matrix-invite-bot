@@ -285,7 +285,7 @@ module MatrixInviteBot
       params[:not_membership] = :leave if even_if_leave
 
       rooms.each do |room|
-        next if room.all_members(params).map(&:id).include? user_id.id
+        next if room.all_members(**params).map(&:id).include? user_id.id
 
         room.invite_user user_id
       end
