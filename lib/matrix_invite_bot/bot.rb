@@ -39,7 +39,7 @@ module MatrixInviteBot
     attr_reader :client
 
     def initialize(homeserver:, access_token:, state_type: 'se.liu.invite_bot')
-      @client = MatrixSdk::Client.new homeserver, access_token: access_token, client_cache: :some
+      @client = MatrixSdk::Client.new homeserver, access_token: access_token, client_cache: :all
       @state_type = state_type
       @tracked = []
     end
@@ -87,6 +87,7 @@ module MatrixInviteBot
 
       return unless event.content[:membership] == 'join'
       return if event.state_key == client.mxid.to_s
+      return if room.members.find { |u| u.id == event.state_key } # Already seen the user join this room
 
       invite_user(community, event.state_key, even_if_leave: true)
     end
