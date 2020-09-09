@@ -27,6 +27,8 @@ unless MatrixSdk::Room.instance_methods.include? :put_state_event
     def handle_state(room_id, state_event)
       handle_state_broken(room_id, state_event)
 
+      return unless state_event.key? :state_key
+
       ensure_room(room_id).send :put_state_event, state_event
     end
   end
