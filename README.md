@@ -21,7 +21,7 @@ Usage: matrix_invite_bot [options]
     -v, --verbose                    Enable verbose (debug) output
 ```
 
-Once the bot is running, invite it to a room - and the associated community, and all the community rooms - and use the command `!invite link +community:example.com` to set up the link.
+Once the bot is running, invite it to what is to be the main room - and the associated community and rooms - and use the command `!invite link +community:example.com` in the main room to set up the link.
 
 ## Contributing
 
