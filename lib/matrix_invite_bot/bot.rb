@@ -82,6 +82,8 @@ module MatrixInviteBot
     def on_member_event(event)
       return if %w[invite knock].include? event.content[:membership]
 
+      logger.info "Seen member event for #{event.state_key} in #{event.room_id} - #{event.content[:membership]}"
+
       room = client.ensure_room event.room_id
       community = room.community
 
@@ -89,7 +91,7 @@ module MatrixInviteBot
       return if event.state_key == client.mxid.to_s
       return if room.members.find { |u| u.id == event.state_key } # Already seen the user join this room
 
-      invite_user(community, event.state_key, even_if_leave: true)
+      invite_user(community, event.state_key) # even_if_leave: true # TODO: Config
     end
 
     def on_message_event(event)
