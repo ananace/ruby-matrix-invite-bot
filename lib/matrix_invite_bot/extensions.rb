@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'matrix_sdk'
+
 unless MatrixSdk::Room.instance_methods.include? :all_members
   module MatrixSdk
     class Room
@@ -13,9 +15,11 @@ unless MatrixSdk::Room.instance_methods.include? :all_members
   end
 end
 
-unless MatrixSdk::Room.instance_methods.include? :put_state_event
+unless MatrixSdk::Room.private_instance_methods.include? :put_state_event
   module MatrixSdk
     class Room
+      private
+
       def put_state_event(event)
         fire_state_event MatrixEvent.new(self, event)
       end
